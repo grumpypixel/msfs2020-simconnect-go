@@ -1,0 +1,3 @@
+# msfs2020-simconnect-go
+
+This library is work in progress...

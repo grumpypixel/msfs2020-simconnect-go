@@ -1,0 +1,5 @@
+Do not use this tool unless you really have to.
+
+The DLL Packer "packs" the SimConnect.DLL (taken from the MSFS2020 SDK) into a static, compileable go file and makes it part of this project.
+
+The intention is to have a backup DLL in case everything goes wrong. Because you never know.
