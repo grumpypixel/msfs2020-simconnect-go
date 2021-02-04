@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"strings"
 )
 
 type Content struct {
@@ -22,6 +21,7 @@ type Content struct {
 
 const (
 	toolName = "filepacker"
+	prefix   = "\\x"
 )
 
 // https://gist.github.com/alex-ant/aeaaf497055590dacba760af24839b8d
@@ -42,7 +42,7 @@ func Pack(infile, outfile, templateFile, timestamp, packageName, funcName string
 		panic(err)
 	}
 
-	t, err := template.New("test").Parse(string(templateBytes))
+	t, err := template.New("gopher").Parse(string(templateBytes))
 	if err != nil {
 		panic(err)
 	}
@@ -55,17 +55,13 @@ func Pack(infile, outfile, templateFile, timestamp, packageName, funcName string
 	writeData(outfile, buf.String())
 }
 
-func Unpack(content string) ([]byte, error) {
-	values := strings.Split(content, "\\x")
-	joined := strings.Join(values, "")
-	data, err := decompress([]byte(joined))
+func Unpack(content []byte) ([]byte, error) {
+	data, err := decompress([]byte(content))
 	if err != nil {
 		return nil, err
 	}
 	return data, nil
 }
-
-func Noop() {}
 
 func readData(filename string) ([]byte, error) {
 	input, err := os.Open(filename)
@@ -86,11 +82,9 @@ func readData(filename string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	if int64(bytesRead) != fileSize {
 		return nil, fmt.Errorf("Bytes read to filesize mismatch")
 	}
-
 	return data, nil
 }
 
@@ -110,7 +104,7 @@ func bytesToHexString(data []byte) string {
 	var single []byte = make([]byte, 1, 1)
 	for _, b := range data {
 		single[0] = b
-		str += fmt.Sprintf("\\x%v", hex.EncodeToString(single))
+		str += fmt.Sprintf("%s%v", prefix, hex.EncodeToString(single))
 	}
 	return str
 }
@@ -121,37 +115,30 @@ func compress(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	_, err = w.Write(data)
 	if err != nil {
 		return nil, err
 	}
-
 	if err = w.Flush(); err != nil {
 		return nil, err
 	}
-
 	if err = w.Close(); err != nil {
 		return nil, err
 	}
-
 	return buf.Bytes(), nil
 }
 
 func decompress(data []byte) ([]byte, error) {
 	buf := bytes.NewBuffer(data)
-
 	var r io.Reader
 	r, err := gzip.NewReader(buf)
 	if err != nil {
 		return nil, err
 	}
-
 	var res bytes.Buffer
 	_, err = res.ReadFrom(r)
 	if err != nil {
 		return nil, err
 	}
-
 	return res.Bytes(), nil
 }

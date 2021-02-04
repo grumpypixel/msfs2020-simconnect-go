@@ -17,7 +17,7 @@ func init() {
 
 func UnpackDLL(path string) error {
 	data := PackedSimConnectDLL()
-	unpacked, err := filepacker.Unpack(string(data))
+	unpacked, err := filepacker.Unpack(data)
 	if err != nil {
 		return err
 	}
