@@ -395,5 +395,3 @@ func loadProcedures() {
 		procs[procName] = library.NewProc(procName)
 	}
 }
-
-func Noop(interface{}) {}

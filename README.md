@@ -20,7 +20,7 @@ At the time of writing, there are two simple [examples](https://github.com/grump
 
 [Example #2](https://github.com/grumpypixel/msfs2020-simconnect-go/blob/master/examples/02_simmate/main.go) shows how to use the [SimMate](https://github.com/grumpypixel/msfs2020-simconnect-go/blob/master/simconnect/simmate.go), a convenience class where the [management](https://github.com/grumpypixel/msfs2020-simconnect-go/blob/master/simconnect/simvar_manager.go) of [SimVars](https://github.com/grumpypixel/msfs2020-simconnect-go/blob/master/simconnect/simvar.go) is handled for you. This encapsulation works for the above mentioned [GoPilot](https://github.com/grumpypixel/msfs2020-gopilot), but it may not work for you. Just build your own - which is awesome because this package might get inspired by your creation and improvements.
 
-# SimMate? Seriously?
+## SimMate? Seriously?
 
 Because I didn't want to call it *Something* *Something* *Manager*, that's why.
 
