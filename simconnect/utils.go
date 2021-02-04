@@ -1,38 +1,11 @@
 package simconnect
 
-import (
-	"os"
-	"time"
-
-	"github.com/grumpypixel/msfs2020-simconnect-go/filepacker"
-)
-
 var (
 	dataTypeMapper map[string]DWord
 )
 
 func init() {
 	dataTypeMapper = stringToDataTypeMapping()
-}
-
-func UnpackDLL(path string) error {
-	data := PackedSimConnectDLL()
-	unpacked, err := filepacker.Unpack(data)
-	if err != nil {
-		return err
-	}
-	file, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	if _, err := file.WriteString(string(unpacked)); err != nil {
-		return err
-	}
-	if err := file.Close(); err != nil {
-		return err
-	}
-	time.Sleep(time.Second * 1)
-	return nil
 }
 
 func StringToDataType(dataType string) DWord {
