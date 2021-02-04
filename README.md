@@ -26,7 +26,7 @@ Because I didn't want to call it *Something* *Something* *Manager*, that's why.
 
 ## Do you suffer from naming paralysis from time to time?
 
-Yes. Way to often. But names do matter. And sometimes a stupid name is better than no name at all.
+Yes. Way too often. But names do matter. And sometimes a stupid name is better than no name at all.
 
 Nonetheless.
 
