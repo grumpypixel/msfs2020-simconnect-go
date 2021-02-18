@@ -8,10 +8,14 @@ import (
 	"unsafe"
 )
 
+const (
+	simVarRequestTimeout int64 = 10000
+)
+
 type EventListener interface {
 	OnOpen(applName, applVersion, applBuild, simConnectVersion, simConnectBuild string)
 	OnQuit()
-	OnDataUpdate(defineID DWord)
+	OnDataUpdate(defineID DWord, value interface{})
 	OnDataReady()
 	OnEventID(eventID DWord)
 	OnException(exceptionCode DWord)
@@ -21,6 +25,7 @@ type SimMate struct {
 	SimConnect
 	simVarManager *SimVarManager
 	mutex         sync.Mutex
+	dirty         bool
 }
 
 func NewSimMate() *SimMate {
@@ -37,6 +42,7 @@ func NewSimMate() *SimMate {
 func (mate *SimMate) AddSimVar(name, unit string, dataType DWord) DWord {
 	defineID := mate.simVarManager.Add(name, unit, dataType)
 	fmt.Println("Added SimVar", defineID, name, unit, dataType)
+	mate.dirty = true
 	return defineID
 }
 
@@ -93,7 +99,7 @@ func (mate *SimMate) SetSimObjectData(name, unit string, value interface{}, data
 	return nil
 }
 
-func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveDataInterval time.Duration, listener EventListener) {
+func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveDataInterval time.Duration, stop chan interface{}, listener EventListener) {
 	reqDataTicker := time.NewTicker(requestDataInterval)
 	defer reqDataTicker.Stop()
 
@@ -113,10 +119,10 @@ func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveData
 			requestCount++
 
 		case <-recvDataTicker.C:
-			ppData, r1, err := mate.GetNextDispatch()
+			ppData, r1, _ := mate.GetNextDispatch()
 			if r1 < 0 {
 				if uint32(r1) != EFail {
-					fmt.Printf("GetNextDispatch error: %d %s\n", r1, err)
+					// fmt.Printf("GetNextDispatch error: %d %s\n", r1, err)
 					return
 				}
 				if ppData == nil {
@@ -190,7 +196,7 @@ func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveData
 				if value != nil {
 					mate.updateSimObjectData(recvData.RequestID, recvData.DefineID, value)
 					updateCount++
-					listener.OnDataUpdate(recvData.DefineID)
+					listener.OnDataUpdate(recvData.DefineID, value)
 				}
 
 			case RecvIDEvent:
@@ -201,6 +207,9 @@ func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveData
 				recvException := *(*RecvException)(ppData)
 				listener.OnException(recvException.Exception)
 
+			case <-stop:
+				return
+
 			default:
 				fmt.Println("Unknown recvInfo ID", recv.ID)
 			}
@@ -209,9 +218,6 @@ func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveData
 }
 
 func (mate *SimMate) registerSimVars() error {
-	if !mate.connected {
-		return mate.notConnectedError()
-	}
 	count := 0
 	for _, simVar := range mate.simVarManager.Vars {
 		if !simVar.Registered {
@@ -224,28 +230,34 @@ func (mate *SimMate) registerSimVars() error {
 			}
 		}
 	}
-	fmt.Printf("Registered %d new simvars\n", count)
+	if count > 0 {
+		fmt.Printf("Registered %d simvars\n", count)
+	}
 	return nil
 }
 
 func (mate *SimMate) requestSimObjectData() (bool, error) {
-	if !mate.connected {
-		return false, mate.notConnectedError()
-	}
 	mate.mutex.Lock()
 	defer mate.mutex.Unlock()
-	if mate.simVarManager.Dirty {
+
+	if mate.dirty {
 		mate.registerSimVars()
-		mate.simVarManager.Dirty = false
+		mate.dirty = false
 	}
+
+	timestamp := time.Now().UnixNano() / int64(time.Millisecond)
 	const radiusMeters = 0
 	simObjectType := SimObjectTypeUser
 	for _, simVar := range mate.simVarManager.Vars {
-		if simVar.Pending {
-			continue
+		if !simVar.Pending {
+			simVar.RequestID = NewRequestID()
+		} else {
+			if timestamp-simVar.Timestamp < simVarRequestTimeout {
+				continue
+			}
 		}
-		simVar.RequestID = NewRequestID()
 		mate.RequestDataOnSimObjectType(simVar.RequestID, simVar.DefineID, radiusMeters, simObjectType)
+		simVar.Timestamp = timestamp
 		simVar.Pending = true
 	}
 	return true, nil
@@ -255,10 +267,6 @@ func (mate *SimMate) updateSimObjectData(requestID, defineID DWord, value interf
 	if simVar, updated := mate.simVarManager.Update(requestID, defineID, value); updated {
 		simVar.Pending = false
 	}
-}
-
-func (simco *SimConnect) notConnectedError() error {
-	return fmt.Errorf("Not connected to SimConnect")
 }
 
 // Generics. Needed. Badly. Ugh.

@@ -11,7 +11,6 @@ type SimVarManager struct {
 	nameMap map[string]*SimVar
 	idMap   map[DWord]*SimVar
 	mutex   sync.Mutex
-	Dirty   bool
 }
 
 func NewSimVarManager() *SimVarManager {
@@ -35,6 +34,7 @@ func (mgr *SimVarManager) SimVars() []*SimVar {
 func (mgr *SimVarManager) Add(name string, unit string, dataType DWord) DWord {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
+
 	if simVar, exists := mgr.simVarWithName(name); exists {
 		return simVar.DefineID
 	}
@@ -44,8 +44,6 @@ func (mgr *SimVarManager) Add(name string, unit string, dataType DWord) DWord {
 	mgr.Vars = append(mgr.Vars, simVar)
 	mgr.nameMap[name] = simVar
 	mgr.idMap[defineID] = simVar
-
-	mgr.Dirty = true
 	return defineID
 }
 

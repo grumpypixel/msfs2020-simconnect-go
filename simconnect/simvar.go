@@ -11,6 +11,7 @@ type SimVar struct {
 	IsString    bool
 	Registered  bool
 	Pending     bool
+	Timestamp   int64
 }
 
 func NewSimVar(defineID DWord, name string, unit string, dataType DWord) *SimVar {
