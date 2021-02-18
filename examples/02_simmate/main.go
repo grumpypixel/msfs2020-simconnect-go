@@ -24,7 +24,7 @@ type App struct {
 	simconnect.EventListener
 	mate    *simconnect.SimMate
 	vars    []*Var
-	done    chan bool
+	done    chan interface{}
 	counter uint32
 }
 
@@ -51,7 +51,7 @@ func main() {
 }
 
 func (app *App) run() {
-	app.done = make(chan bool, 1)
+	app.done = make(chan interface{}, 1)
 	defer close(app.done)
 
 	app.mate = simconnect.NewSimMate()
@@ -76,9 +76,13 @@ func (app *App) run() {
 	}
 
 	go app.handleTerminationSignal()
-	go app.mate.HandleEvents(requestDataInterval, receiveDataInterval, app)
+
+	stop := make(chan interface{}, 1)
+	defer close(stop)
+	go app.mate.HandleEvents(requestDataInterval, receiveDataInterval, stop, app)
 
 	<-app.done
+	stop <- true
 
 	app.mate.Close()
 }
@@ -120,7 +124,7 @@ func (app *App) OnException(exceptionCode simconnect.DWord) {
 	fmt.Printf("Exception (code: %d)\n", exceptionCode)
 }
 
-func (app *App) OnDataUpdate(defineID simconnect.DWord) {
+func (app *App) OnDataUpdate(defineID simconnect.DWord, value interface{}) {
 	// ignore
 }
 
