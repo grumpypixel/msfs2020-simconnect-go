@@ -2,7 +2,7 @@
 
 ## tl;dr
 
-This is a Golang interface for Microsoft Flight Simulator 2020 (MSFS2020 ) using SimConnect.
+This library a Golang interface for Microsoft Flight Simulator 2020 (MSFS2020 ) using SimConnect.
 
 ## Does it work?
 

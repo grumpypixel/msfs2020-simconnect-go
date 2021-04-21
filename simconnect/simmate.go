@@ -12,13 +12,32 @@ const (
 	simVarRequestTimeout int64 = 10000
 )
 
-type EventListener interface {
-	OnOpen(applName, applVersion, applBuild, simConnectVersion, simConnectBuild string)
-	OnQuit()
-	OnDataUpdate(defineID DWord, value interface{})
-	OnDataReady()
-	OnEventID(eventID DWord)
-	OnException(exceptionCode DWord)
+// type EventListener1 interface {
+// 	OnOpen(applName, applVersion, applBuild, simConnectVersion, simConnectBuild string)
+// 	OnQuit()
+// 	OnSimObjectData(data *RecvSimObjectData)
+// 	OnSimObjectDataByType(data *RecvSimObjectDataByType)
+// 	OnDataReady()
+// 	OnEventID(eventID DWord)
+// 	OnException(exceptionCode DWord)
+// }
+
+type OnOpenFunc func(applName, applVersion, applBuild, simConnectVersion, simConnectBuild string)
+type OnQuitFunc func()
+type OnSimObjectDataFunc func(data *RecvSimObjectData)
+type OnSimObjectDataByTypeFunc func(data *RecvSimObjectDataByType)
+type OnDataReadyFunc func()
+type OnEventIDFunc func(eventID DWord)
+type OnExceptionFunc func(exceptionCode DWord)
+
+type EventListener struct {
+	OnOpen                OnOpenFunc
+	OnQuit                OnQuitFunc
+	OnSimObjectData       OnSimObjectDataFunc
+	OnSimObjectDataByType OnSimObjectDataByTypeFunc
+	OnDataReady           OnDataReadyFunc
+	OnEventID             OnEventIDFunc
+	OnException           OnExceptionFunc
 }
 
 type SimMate struct {
@@ -41,7 +60,6 @@ func NewSimMate() *SimMate {
 
 func (mate *SimMate) AddSimVar(name, unit string, dataType DWord) DWord {
 	defineID := mate.simVarManager.Add(name, unit, dataType)
-	fmt.Println("Added SimVar", defineID, name, unit, dataType)
 	mate.dirty = true
 	return defineID
 }
@@ -50,7 +68,6 @@ func (mate *SimMate) RemoveSimVar(defineID DWord) bool {
 	if ok := mate.simVarManager.Remove(defineID); !ok {
 		return false
 	}
-	fmt.Println("Removed SimVar", defineID)
 	return true
 }
 
@@ -94,12 +111,12 @@ func (mate *SimMate) SetSimObjectData(name, unit string, value interface{}, data
 		mate.SetDataOnSimObject(defineID, ObjectIDUser, 0, 0, size, unsafe.Pointer(&buffer[0]))
 
 	default:
-		panic(fmt.Errorf("Datatype not implemented"))
+		panic(fmt.Errorf("datatype not implemented"))
 	}
 	return nil
 }
 
-func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveDataInterval time.Duration, stop chan interface{}, listener EventListener) {
+func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveDataInterval time.Duration, stop chan interface{}, listener *EventListener) {
 	reqDataTicker := time.NewTicker(requestDataInterval)
 	defer reqDataTicker.Stop()
 
@@ -111,9 +128,14 @@ func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveData
 
 	for {
 		select {
+		case <-stop:
+			return
+
 		case <-reqDataTicker.C:
 			if updateCount > 0 {
-				listener.OnDataReady()
+				if listener != nil && listener.OnDataReady != nil {
+					listener.OnDataReady()
+				}
 			}
 			mate.requestSimObjectData()
 			requestCount++
@@ -132,6 +154,12 @@ func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveData
 
 			recv := *(*Recv)(ppData)
 			switch recv.ID {
+			case RecvIDException:
+				recvException := *(*RecvException)(ppData)
+				if listener != nil && listener.OnException != nil {
+					listener.OnException(recvException.Exception)
+				}
+
 			case RecvIDOpen:
 				recvOpen := *(*RecvOpen)(ppData)
 				applName := strings.Trim(string(recvOpen.ApplicationName[:256]), "\x00")
@@ -139,10 +167,30 @@ func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveData
 				applBuild := fmt.Sprintf("%d.%d", recvOpen.ApplicationBuildMajor, recvOpen.ApplicationBuildMinor)
 				simConnectVersion := fmt.Sprintf("%d.%d", recvOpen.SimConnectVersionMajor, recvOpen.SimConnectVersionMinor)
 				simConnectBuild := fmt.Sprintf("%d.%d", recvOpen.SimConnectBuildMajor, recvOpen.SimConnectBuildMinor)
-				listener.OnOpen(applName, applVersion, applBuild, simConnectVersion, simConnectBuild)
+				if listener != nil && listener.OnOpen != nil {
+					listener.OnOpen(applName, applVersion, applBuild, simConnectVersion, simConnectBuild)
+				}
 
 			case RecvIDQuit:
-				listener.OnQuit()
+				if listener != nil && listener.OnQuit != nil {
+					listener.OnQuit()
+				}
+
+			case RecvIDEvent:
+				recvEvent := *(*RecvEvent)(ppData)
+				if listener != nil && listener.OnEventID != nil {
+					listener.OnEventID(recvEvent.EventID)
+				}
+
+			// case RecvIDEventObjectAddRemove:
+			// case RecvIDEventFilename:
+			// case RecvIDEventFrame:
+
+			case RecvIDSimobjectData:
+				recvData := *(*RecvSimObjectData)(ppData)
+				if listener != nil && listener.OnSimObjectData != nil {
+					listener.OnSimObjectData(&recvData)
+				}
 
 			case RecvIDSimObjectDataByType:
 				recvData := *(*RecvSimObjectDataByType)(ppData)
@@ -196,19 +244,29 @@ func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveData
 				if value != nil {
 					mate.updateSimObjectData(recvData.RequestID, recvData.DefineID, value)
 					updateCount++
-					listener.OnDataUpdate(recvData.DefineID, value)
+				}
+				if listener != nil && listener.OnSimObjectDataByType != nil {
+					listener.OnSimObjectDataByType(&recvData)
 				}
 
-			case RecvIDEvent:
-				recvEvent := *(*RecvEvent)(ppData)
-				listener.OnEventID(recvEvent.EventID)
-
-			case RecvIDException:
-				recvException := *(*RecvException)(ppData)
-				listener.OnException(recvException.Exception)
-
-			case <-stop:
-				return
+			// case RecvIDWeatherObservation:
+			// case RecvIDCloudState:
+			// case RecvIDAssignedObjectID:
+			// case RecvIDReservedKey:
+			// case RecvIDCustomAction:
+			// case RecvIDSystemState:
+			// case RecvIDClientData:
+			// case RecvIDEventWeatherMode:
+			// case RecvIDAirportList:
+			// case RecvIDVORList:
+			// case RecvIDNDBList:
+			// case RecvIDWaypointList:
+			// case RecvIDEventMultiplayerServerStarted:
+			// case RecvIDEventMultiplayerClientStarted:
+			// case RecvIDEventMultiplayerSessionEnded:
+			// case RecvIDEventRaceEnd:
+			// case RecvIDEventRaceLap:
+			// case RecvIDPick:
 
 			default:
 				fmt.Println("Unknown recvInfo ID", recv.ID)
@@ -217,23 +275,20 @@ func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveData
 	}
 }
 
-func (mate *SimMate) registerSimVars() error {
+func (mate *SimMate) registerSimVars() (int, error) {
 	count := 0
 	for _, simVar := range mate.simVarManager.Vars {
 		if !simVar.Registered {
 			err := mate.AddToDataDefinition(simVar.DefineID, simVar.Name, simVar.Unit, simVar.DataType)
 			if err != nil {
-				return err
+				return count, err
 			} else {
 				simVar.Registered = true
 				count++
 			}
 		}
 	}
-	if count > 0 {
-		fmt.Printf("Registered %d simvars\n", count)
-	}
-	return nil
+	return count, nil
 }
 
 func (mate *SimMate) requestSimObjectData() (bool, error) {
@@ -241,7 +296,13 @@ func (mate *SimMate) requestSimObjectData() (bool, error) {
 	defer mate.mutex.Unlock()
 
 	if mate.dirty {
-		mate.registerSimVars()
+		count, err := mate.registerSimVars()
+		if err != nil {
+			return false, err
+		}
+		if count > 0 {
+			fmt.Printf("Registered %d simvars\n", count)
+		}
 		mate.dirty = false
 	}
 
@@ -326,5 +387,5 @@ type SimObjectData_string260 struct {
 
 type SimObjectData_stringv struct {
 	SimObjectData
-	Value string // Not sure if this is correct
+	Value string // TODO: Not sure if this is correct
 }

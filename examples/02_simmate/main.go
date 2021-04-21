@@ -21,11 +21,11 @@ type Var struct {
 }
 
 type App struct {
-	simconnect.EventListener
-	mate    *simconnect.SimMate
-	vars    []*Var
-	done    chan interface{}
-	counter uint32
+	mate          *simconnect.SimMate
+	vars          []*Var
+	done          chan interface{}
+	counter       uint32
+	eventListener *simconnect.EventListener
 }
 
 var (
@@ -54,6 +54,14 @@ func (app *App) run() {
 	app.done = make(chan interface{}, 1)
 	defer close(app.done)
 
+	app.eventListener = &simconnect.EventListener{
+		OnOpen:      app.OnOpen,
+		OnQuit:      app.OnQuit,
+		OnDataReady: app.OnDataReady,
+		OnEventID:   app.OnEventID,
+		OnException: app.OnException,
+	}
+
 	app.mate = simconnect.NewSimMate()
 
 	if err := app.mate.Open("Transpotato"); err != nil {
@@ -79,7 +87,7 @@ func (app *App) run() {
 
 	stop := make(chan interface{}, 1)
 	defer close(stop)
-	go app.mate.HandleEvents(requestDataInterval, receiveDataInterval, stop, app)
+	go app.mate.HandleEvents(requestDataInterval, receiveDataInterval, stop, app.eventListener)
 
 	<-app.done
 	stop <- true
@@ -122,10 +130,6 @@ func (app *App) OnEventID(eventID simconnect.DWord) {
 
 func (app *App) OnException(exceptionCode simconnect.DWord) {
 	fmt.Printf("Exception (code: %d)\n", exceptionCode)
-}
-
-func (app *App) OnDataUpdate(defineID simconnect.DWord, value interface{}) {
-	// ignore
 }
 
 func (app *App) OnDataReady() {

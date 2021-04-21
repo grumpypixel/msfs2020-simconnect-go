@@ -122,22 +122,12 @@ func (mgr *SimVarManager) ToString(dataType DWord, value interface{}) string {
 func (mgr *SimVarManager) SimVarDump(indent string) []string {
 	dump := make([]string, 0)
 	for i, simVar := range mgr.Vars {
-		str := fmt.Sprintf("%s%02d: name: %s unit: %s value: %f type: %s updates: %d reqId: %d defid: %d registered: %v pending: %v",
+		str := fmt.Sprintf("%s%02d: name: %s unit: %s value: %v type: %s updates: %d reqId: %d defid: %d registered: %v pending: %v",
 			indent, i+1, simVar.Name, simVar.Unit, simVar.Value, DataTypeToString(simVar.DataType), simVar.UpdateCount,
 			simVar.RequestID, simVar.DefineID, simVar.Registered, simVar.Pending)
 		dump = append(dump, str)
 	}
 	return dump
-}
-
-func (mgr *SimVarManager) existsWithName(name string) bool {
-	_, exists := mgr.nameMap[name]
-	return exists
-}
-
-func (mgr *SimVarManager) existsWithID(defineID DWord) bool {
-	_, exists := mgr.idMap[defineID]
-	return exists
 }
 
 func (mgr *SimVarManager) simVarWithName(name string) (*SimVar, bool) {
@@ -149,14 +139,3 @@ func (mgr *SimVarManager) simVarWithID(defineID DWord) (*SimVar, bool) {
 	simVar, exists := mgr.idMap[defineID]
 	return simVar, exists
 }
-
-// func (mgr *SimVarManager) AnyPending() bool {
-// 	mgr.mutex.Lock()
-// 	defer mgr.mutex.Unlock()
-// 	for _, simVar := range mgr.Vars {
-// 		if simVar.Pending {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
