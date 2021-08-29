@@ -6,21 +6,13 @@ import (
 	"sync"
 	"time"
 	"unsafe"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
 	simVarRequestTimeout int64 = 10000
 )
-
-// type EventListener1 interface {
-// 	OnOpen(applName, applVersion, applBuild, simConnectVersion, simConnectBuild string)
-// 	OnQuit()
-// 	OnSimObjectData(data *RecvSimObjectData)
-// 	OnSimObjectDataByType(data *RecvSimObjectDataByType)
-// 	OnDataReady()
-// 	OnEventID(eventID DWord)
-// 	OnException(exceptionCode DWord)
-// }
 
 type OnOpenFunc func(applName, applVersion, applBuild, simConnectVersion, simConnectBuild string)
 type OnQuitFunc func()
@@ -269,7 +261,7 @@ func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveData
 			// case RecvIDPick:
 
 			default:
-				fmt.Println("Unknown recvInfo ID", recv.ID)
+				log.Debug("Unknown recvInfo ID ", recv.ID)
 			}
 		}
 	}
