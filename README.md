@@ -1,8 +1,10 @@
 # msfs2020-simconnect-go
 
-## tl;dr
+This is a Golang interface for Microsoft Flight Simulator 2020 (MSFS2020 ) using SimConnect.
 
-This library a Golang interface for Microsoft Flight Simulator 2020 (MSFS2020 ) using SimConnect.
+## Installation
+
+`$ go get github.com/grumpypixel/msfs2020-simconnect-go`
 
 ## Does it work?
 
