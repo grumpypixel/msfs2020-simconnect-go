@@ -103,7 +103,7 @@ func (mate *SimMate) SetSimObjectData(name, unit string, value interface{}, data
 		mate.SetDataOnSimObject(defineID, ObjectIDUser, 0, 0, size, unsafe.Pointer(&buffer[0]))
 
 	default:
-		panic(fmt.Errorf("datatype not implemented"))
+		log.Error("SimConnect.SetSimObjectData: datatype not implemented: ", dataType)
 	}
 	return nil
 }
@@ -133,10 +133,10 @@ func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveData
 			requestCount++
 
 		case <-recvDataTicker.C:
-			ppData, r1, _ := mate.GetNextDispatch()
+			ppData, r1, err := mate.GetNextDispatch()
 			if r1 < 0 {
 				if uint32(r1) != EFail {
-					// fmt.Printf("GetNextDispatch error: %d %s\n", r1, err)
+					log.Debug(fmt.Sprintf("GetNextDispatch error: %d %s", r1, err))
 					return
 				}
 				if ppData == nil {
@@ -293,7 +293,7 @@ func (mate *SimMate) requestSimObjectData() (bool, error) {
 			return false, err
 		}
 		if count > 0 {
-			fmt.Printf("Registered %d simvars\n", count)
+			log.Debug(fmt.Sprintf("Registered %d simvars", count))
 		}
 		mate.dirty = false
 	}
