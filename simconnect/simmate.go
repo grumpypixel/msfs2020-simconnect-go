@@ -41,7 +41,6 @@ type SimMate struct {
 
 func NewSimMate() *SimMate {
 	if !initialized {
-		// auto-initialize with default search paths
 		Initialize("")
 	}
 	mate := &SimMate{
@@ -103,7 +102,7 @@ func (mate *SimMate) SetSimObjectData(name, unit string, value interface{}, data
 		mate.SetDataOnSimObject(defineID, ObjectIDUser, 0, 0, size, unsafe.Pointer(&buffer[0]))
 
 	default:
-		log.Error("SimConnect.SetSimObjectData: datatype not implemented: ", dataType)
+		log.Tracef("SimConnect.SetSimObjectData: datatype not implemented: %v", dataType)
 	}
 	return nil
 }
@@ -136,7 +135,7 @@ func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveData
 			ppData, r1, err := mate.GetNextDispatch()
 			if r1 < 0 {
 				if uint32(r1) != EFail {
-					log.Debug(fmt.Sprintf("GetNextDispatch error: %d %s", r1, err))
+					log.Tracef("GetNextDispatch error: %s (%d)", err.Error(), r1)
 					return
 				}
 				if ppData == nil {
@@ -261,7 +260,7 @@ func (mate *SimMate) HandleEvents(requestDataInterval time.Duration, receiveData
 			// case RecvIDPick:
 
 			default:
-				log.Debug("Unknown recvInfo ID ", recv.ID)
+				log.Tracef("Unknown recvInfo ID: %d", recv.ID)
 			}
 		}
 	}
@@ -293,7 +292,7 @@ func (mate *SimMate) requestSimObjectData() (bool, error) {
 			return false, err
 		}
 		if count > 0 {
-			log.Debug(fmt.Sprintf("Registered %d simvars", count))
+			log.Tracef("Registered %d simvars", count)
 		}
 		mate.dirty = false
 	}

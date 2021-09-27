@@ -43,16 +43,18 @@ func NewSimConnect() *SimConnect {
 	return &SimConnect{}
 }
 
-func LocateLibrary(additionalSearchPath string) error {
-	paths, err := buildSearchPaths(additionalSearchPath)
+func LocateLibrary(additionalSearchPath string) (string, error) {
+	var libPath string
+	paths, err := getSearchPaths(additionalSearchPath)
 	if err != nil {
-		return err
+		return libPath, err
 	}
-	_, err = findLibrary(paths)
+
+	libPath, err = findLibrary(paths)
 	if err != nil {
-		return err
+		return libPath, err
 	}
-	return nil
+	return libPath, nil
 }
 
 func Initialize(additionalSearchPath string) error {
@@ -60,7 +62,7 @@ func Initialize(additionalSearchPath string) error {
 		return nil
 	}
 
-	paths, err := buildSearchPaths(additionalSearchPath)
+	paths, err := getSearchPaths(additionalSearchPath)
 	if err != nil {
 		return err
 	}
@@ -108,10 +110,10 @@ func NewEventID() DWord {
 	return eventID
 }
 
-func buildSearchPaths(searchPath string) ([]string, error) {
+func getSearchPaths(additionalSearchPath string) ([]string, error) {
 	paths := []string{}
-	if len(searchPath) > 0 {
-		paths = append(paths, searchPath)
+	if len(additionalSearchPath) > 0 {
+		paths = append(paths, additionalSearchPath)
 	}
 
 	execPath, err := os.Executable()
